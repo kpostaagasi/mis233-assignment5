@@ -10,6 +10,7 @@ import { Credentials } from "./validation.ts";
 import { jsonLogger, requestLog } from "./logging.ts";
 import type { Env, Logger } from "./types.ts";
 import { taskRoutes } from "./tasks_routes.ts";
+import { addWelcomeTask, registerUser } from "./users_repo.ts";
 
 // A real bcrypt hash of a random string. Login compares against it when the email is
 // unknown, so a wrong email takes as long as a wrong password (no timing hint).
@@ -18,6 +19,7 @@ const DUMMY_HASH = await hashPassword(crypto.randomUUID());
 export type AppOptions = {
   config: Config;
   log: Logger; // where the request log lines go (tests collect them)
+  welcomeTask: boolean; // Bonus 2: register also creates a first task (default true)
 };
 
 /** Build the whole application around a database, so tests can give it their own. */
@@ -60,9 +62,9 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
     );
     if (taken) return fail(c, 409, "email already registered");
 
-    const [user] = await db.db.insert(users)
-      .values({ email, passwordHash: await hashPassword(password) })
-      .returning({ id: users.id, email: users.email });
+    const passwordHash = await hashPassword(password);
+    const welcome = options.welcomeTask === false ? null : addWelcomeTask;
+    const user = await registerUser(db, email, passwordHash, welcome);
     return c.json(user, 201);
   });
 

@@ -25,6 +25,7 @@ export const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: Status.optional(),
   priority: Priority.optional(),
+  deleted: z.stringbool().default(false),
 });
 
 /** The :id in the URL: a positive whole number, or the request is a 400. */

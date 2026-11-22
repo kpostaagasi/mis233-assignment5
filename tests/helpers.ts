@@ -1,5 +1,5 @@
 // Kamil Postaağası, 2023501030
-import { createApp } from "../src/app.ts";
+import { type AppOptions, createApp } from "../src/app.ts";
 import { createDb, migrate } from "../src/db.ts";
 
 type App = ReturnType<typeof createApp>;
@@ -9,11 +9,19 @@ type App = ReturnType<typeof createApp>;
  * (An in-memory database loses its tables after a transaction with libSQL,
  * so a temporary file is the safe choice.)
  */
-export async function freshApp() {
+export async function freshApp(options: Partial<AppOptions> = {}) {
+  return (await freshEnv(options)).app;
+}
+
+/**
+ * Like freshApp, but also hands back the database. The required-part tests count tasks
+ * exactly, so the Bonus 2 welcome task is off here unless a test turns it on.
+ */
+export async function freshEnv(options: Partial<AppOptions> = {}) {
   const file = await Deno.makeTempFile({ suffix: ".db" });
   const db = createDb(`file:${file}`);
   await migrate(db);
-  return createApp(db);
+  return { db, app: createApp(db, { welcomeTask: false, ...options }) };
 }
 
 /** Send a JSON request, optionally with a token. */

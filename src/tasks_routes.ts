@@ -4,7 +4,14 @@ import type { Db } from "./db.ts";
 import type { Env } from "./types.ts";
 import { fail, toIssues } from "./errors.ts";
 import { IdParam, ListQuery, TaskBody } from "./validation.ts";
-import { createTask, deleteTask, getTask, listTasks, updateTask } from "./tasks_repo.ts";
+import {
+  createTask,
+  deleteTask,
+  getTask,
+  listTasks,
+  restoreTask,
+  updateTask,
+} from "./tasks_repo.ts";
 
 /** The five task routes. requireAuth has already run, so c.get("userId") is set. */
 export function taskRoutes(db: Db) {
@@ -47,6 +54,13 @@ export function taskRoutes(db: Db) {
     if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
     const deleted = await deleteTask(db, c.get("userId"), p.data.id);
     return deleted ? c.json({ ok: true }) : fail(c, 404, "task not found");
+  });
+
+  r.post("/:id/restore", async (c) => {
+    const p = IdParam.safeParse(c.req.param());
+    if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
+    const task = await restoreTask(db, c.get("userId"), p.data.id);
+    return task ? c.json(task) : fail(c, 404, "no deleted task with this id");
   });
 
   return r;

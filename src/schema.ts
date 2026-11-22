@@ -33,6 +33,8 @@ export const tasks = sqliteTable("tasks", {
   createdAt: integer("created_at").notNull().default(sql`(strftime('%s','now'))`),
   // Added later with a second migration (Bonus 1): an optional "YYYY-MM-DD" date.
   dueDate: text("due_date"),
+  // Soft delete (Bonus 2): NULL while the task is alive, the delete time once removed.
+  deletedAt: integer("deleted_at"),
 });
 
 export type Task = typeof tasks.$inferSelect;
