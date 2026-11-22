@@ -1,11 +1,11 @@
-// STUDENT NAME, STUDENT NUMBER
+// Kamil Postaağası, 2023501030
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import * as schema from "./schema.ts";
 
 export type Db = ReturnType<typeof createDb>;
 
-/** Open a database. Tests pass "file::memory:" or a temporary file. */
+/** Open a database. Tests pass a temporary file. */
 export function createDb(url: string) {
   const client = createClient({ url });
   const db = drizzle(client, { schema });
@@ -26,7 +26,13 @@ export async function migrate({ client }: Db) {
        user_id INTEGER NOT NULL REFERENCES users(id),
        expires_at INTEGER NOT NULL
      )`,
-    // TODO R2: add the tasks table (id, user_id -> users.id, title, status,
-    // priority, created_at). Status is one of: todo, in-progress, done.
+    `CREATE TABLE IF NOT EXISTS tasks (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL REFERENCES users(id),
+       title TEXT NOT NULL,
+       status TEXT NOT NULL DEFAULT 'todo',
+       priority TEXT NOT NULL DEFAULT 'medium',
+       created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+     )`,
   ]);
 }

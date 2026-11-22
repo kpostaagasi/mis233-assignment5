@@ -1,4 +1,4 @@
-// STUDENT NAME, STUDENT NUMBER
+// Kamil Postaağası, 2023501030
 import { createApp } from "./app.ts";
 import { createDb, migrate } from "./db.ts";
 

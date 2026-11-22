@@ -1,4 +1,4 @@
-// STUDENT NAME, STUDENT NUMBER
+// Kamil Postaağası, 2023501030
 import { Hono } from "hono";
 import type { Db } from "./db.ts";
 

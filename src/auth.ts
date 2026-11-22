@@ -1,4 +1,4 @@
-// STUDENT NAME, STUDENT NUMBER
+// Kamil Postaağası, 2023501030
 import bcrypt from "bcryptjs";
 import type { Db } from "./db.ts";
 

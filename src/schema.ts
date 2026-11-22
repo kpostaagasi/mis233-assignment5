@@ -1,8 +1,13 @@
-// STUDENT NAME, STUDENT NUMBER
+// Kamil Postaağası, 2023501030
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-// Worked example: the users table.
+export const STATUSES = ["todo", "in-progress", "done"] as const;
+export const PRIORITIES = ["low", "medium", "high"] as const;
+export type Status = (typeof STATUSES)[number];
+export type Priority = (typeof PRIORITIES)[number];
+
+// The users table (given).
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),
@@ -11,12 +16,21 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at").notNull().default(sql`(strftime('%s','now'))`),
 });
 
-// The sessions table is given: a login makes a row, a token finds it.
+// The sessions table (given): a login makes a row, a token finds it.
 export const sessions = sqliteTable("sessions", {
   token: text("token").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   expiresAt: integer("expires_at").notNull(),
 });
 
-// TODO R2: define `tasks` the same way. Status is a text column restricted to
-// "todo" | "in-progress" | "done". A task belongs to one user (userId).
+// A task belongs to exactly one user. Times are Unix seconds, like users.created_at.
+export const tasks = sqliteTable("tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  status: text("status", { enum: STATUSES }).notNull().default("todo"),
+  priority: text("priority", { enum: PRIORITIES }).notNull().default("medium"),
+  createdAt: integer("created_at").notNull().default(sql`(strftime('%s','now'))`),
+});
+
+export type Task = typeof tasks.$inferSelect;
