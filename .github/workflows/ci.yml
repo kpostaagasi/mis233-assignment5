@@ -1,0 +1,49 @@
+# Kamil Postaağası, 2023501030
+# Bonus 18: every push and pull request runs the same four checks as on my laptop.
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno fmt --check
+      - run: deno lint
+      - run: deno task check
+      - run: deno task test
+
+  # Bonus 17 proof: build the image, register, restart the container, register again.
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t tasks-api .
+      - run: docker image ls tasks-api
+      - run: docker volume create tasksdata
+      - name: first run, register
+        run: |
+          docker run -d --name api -p 8000:8000 -v tasksdata:/data tasks-api
+          for i in $(seq 1 30); do curl -fs localhost:8000/healthz && break; sleep 1; done
+          echo
+          curl -s -i -X POST localhost:8000/auth/register \
+            -H 'content-type: application/json' \
+            -d '{"email":"docker@example.com","password":"secret123"}'
+          echo
+      - name: restart, the same email is now 409
+        run: |
+          docker stop api && docker rm api
+          docker run -d --name api -p 8000:8000 -v tasksdata:/data tasks-api
+          for i in $(seq 1 30); do curl -fs localhost:8000/healthz && break; sleep 1; done
+          echo
+          code=$(curl -s -o body.json -w '%{http_code}' -X POST localhost:8000/auth/register \
+            -H 'content-type: application/json' \
+            -d '{"email":"docker@example.com","password":"secret123"}')
+          cat body.json; echo; echo "status: $code"
+          test "$code" = "409"
+      - run: docker exec api whoami
+      - if: always()
+        run: docker logs api || true
