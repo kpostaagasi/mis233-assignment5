@@ -1,7 +1,7 @@
 // Kamil Postaağası, 2023501030
 import { Hono } from "hono";
 import type { Db } from "./db.ts";
-import type { Env } from "./auth.ts";
+import type { Env } from "./types.ts";
 import { fail, toIssues } from "./errors.ts";
 import { IdParam, ListQuery, TaskBody } from "./validation.ts";
 import { createTask, deleteTask, getTask, listTasks, updateTask } from "./tasks_repo.ts";

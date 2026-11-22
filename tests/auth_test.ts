@@ -68,7 +68,7 @@ Deno.test("a wrong password and an unknown email give the same 401", async () =>
   });
   assertEquals(wrongPassword.status, 401);
   assertEquals(wrongEmail.status, 401);
-  assertEquals(await wrongPassword.json(), await wrongEmail.json());
+  assertEquals((await wrongPassword.json()).error, (await wrongEmail.json()).error);
 });
 
 Deno.test("the stored password is a bcrypt hash", async () => {

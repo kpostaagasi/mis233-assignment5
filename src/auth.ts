@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import type { MiddlewareHandler } from "hono";
 import type { Db } from "./db.ts";
 import { fail } from "./errors.ts";
+import type { Env } from "./types.ts";
 
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 10);
 export const checkPassword = (plain: string, hash: string) => bcrypt.compare(plain, hash);
@@ -30,9 +31,6 @@ export async function userIdFromToken(db: Db, token: string): Promise<number | n
   const id = res.rows[0]?.user_id;
   return id === undefined ? null : Number(id);
 }
-
-/** What the auth middleware leaves for the routes. */
-export type Env = { Variables: { userId: number } };
 
 /** Read "Authorization: Bearer <token>" and return the token, or "" when there is none. */
 export function bearerToken(header: string | undefined): string {

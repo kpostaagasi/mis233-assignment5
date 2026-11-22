@@ -7,19 +7,25 @@ import { users } from "./schema.ts";
 import { checkPassword, createSession, hashPassword, requireAuth } from "./auth.ts";
 import { fail, toIssues } from "./errors.ts";
 import { Credentials } from "./validation.ts";
+import { jsonLogger, requestLog } from "./logging.ts";
+import type { Env, Logger } from "./types.ts";
 import { taskRoutes } from "./tasks_routes.ts";
 
 // A real bcrypt hash of a random string. Login compares against it when the email is
 // unknown, so a wrong email takes as long as a wrong password (no timing hint).
 const DUMMY_HASH = await hashPassword(crypto.randomUUID());
 
-export type AppOptions = { config: Config };
+export type AppOptions = {
+  config: Config;
+  log: Logger; // where the request log lines go (tests collect them)
+};
 
 /** Build the whole application around a database, so tests can give it their own. */
 export function createApp(db: Db, options: Partial<AppOptions> = {}) {
   const config = options.config ?? testConfig();
-  void config;
-  const app = new Hono();
+  const log = options.log ?? (config.APP_ENV === "test" ? () => {} : jsonLogger);
+  const app = new Hono<Env>();
+  app.use("*", requestLog(log));
   const startedAt = Date.now();
 
   app.get("/health", (c) => c.json({ ok: true }));
@@ -79,7 +85,9 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
 
   app.notFound((c) => fail(c, 404, "not found"));
   app.onError((err, c) => {
-    console.error(err); // details go to the log, not to the client
+    // details go to the log, not to the client; the id links the two
+    console.error(JSON.stringify({ requestId: c.get("requestId"), error: String(err) }));
+    console.error(err);
     return fail(c, 500, "internal error");
   });
   return app;

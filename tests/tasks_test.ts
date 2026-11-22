@@ -6,7 +6,7 @@ Deno.test("GET /api/tasks without a token is 401 in the error shape", async () =
   const app = await freshApp();
   const res = await app.request("/api/tasks");
   assertEquals(res.status, 401);
-  assertEquals(await res.json(), { error: "unauthorized" });
+  assertEquals((await res.json()).error, "unauthorized");
 });
 
 Deno.test("a made-up token is 401 as well", async () => {
@@ -156,7 +156,8 @@ Deno.test("an id that is not a number is 400; an unknown route is 404 in the sam
   const bad = await send(app, "GET", "/api/tasks/abc", undefined, token);
   assertEquals(bad.status, 400);
   const unknown = await app.request("/nothing-here");
-  assertEquals([unknown.status, await unknown.json()], [404, { error: "not found" }]);
+  assertEquals(unknown.status, 404);
+  assertEquals((await unknown.json()).error, "not found");
 });
 
 Deno.test("dueDate is optional, must be a real date, and comes back as text", async () => {
