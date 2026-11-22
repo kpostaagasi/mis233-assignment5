@@ -12,7 +12,8 @@
     "db:migrate": "deno run -A npm:drizzle-kit migrate",
     "start:prod": "deno run -A --env-file=.env.production src/main.ts",
     "explain": "deno run -A scripts/explain.ts",
-    "nplus1": "deno run -A scripts/n_plus_one.ts"
+    "nplus1": "deno run -A scripts/n_plus_one.ts",
+    "seed": "deno run -A --env-file=.env scripts/seed.ts"
   },
   "imports": {
     "hono": "npm:hono@^4",
