@@ -31,6 +31,8 @@ export const tasks = sqliteTable("tasks", {
   status: text("status", { enum: STATUSES }).notNull().default("todo"),
   priority: text("priority", { enum: PRIORITIES }).notNull().default("medium"),
   createdAt: integer("created_at").notNull().default(sql`(strftime('%s','now'))`),
+  // Added later with a second migration (Bonus 1): an optional "YYYY-MM-DD" date.
+  dueDate: text("due_date"),
 });
 
 export type Task = typeof tasks.$inferSelect;

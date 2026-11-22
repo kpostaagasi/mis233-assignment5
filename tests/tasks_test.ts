@@ -158,3 +158,21 @@ Deno.test("an id that is not a number is 400; an unknown route is 404 in the sam
   const unknown = await app.request("/nothing-here");
   assertEquals([unknown.status, await unknown.json()], [404, { error: "not found" }]);
 });
+
+Deno.test("dueDate is optional, must be a real date, and comes back as text", async () => {
+  const app = await freshApp();
+  const token = await login(app);
+  const ok = await send(app, "POST", "/api/tasks", {
+    title: "Midterm",
+    dueDate: "2026-12-04",
+  }, token);
+  assertEquals((await ok.json()).dueDate, "2026-12-04");
+  const bad = await send(
+    app,
+    "POST",
+    "/api/tasks",
+    { title: "x", dueDate: "2026-13-40" },
+    token,
+  );
+  assertEquals(bad.status, 400);
+});

@@ -16,6 +16,7 @@ export const TaskBody = z.object({
   title: z.string().trim().min(1, "title is required").max(100),
   status: Status.default("todo"),
   priority: Priority.default("medium"),
+  dueDate: z.iso.date().nullable().default(null),
 });
 
 /** The query string of GET /api/tasks. Text like "3" becomes the number 3. */

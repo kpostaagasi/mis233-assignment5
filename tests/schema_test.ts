@@ -1,7 +1,7 @@
 // Kamil Postaağası, 2023501030
 import { assertEquals } from "@std/assert";
 import { getTableColumns, getTableName } from "drizzle-orm";
-import { createDb, migrate } from "../src/db.ts";
+import { createDb, migrate, MIGRATIONS } from "../src/db.ts";
 import { tasks, users } from "../src/schema.ts";
 
 async function freshDb() {
@@ -39,4 +39,12 @@ Deno.test("schema.ts and the SQL in the database have the same columns", async (
     const inDrizzle = Object.values(getTableColumns(table)).map((c) => c.name).sort();
     assertEquals(inDb, inDrizzle);
   }
+});
+
+Deno.test("migrate() runs every Drizzle Kit file once and can run again safely", async () => {
+  const db = await freshDb();
+  await migrate(db); // the second time changes nothing and does not throw
+  const res = await db.client.execute("SELECT count(*) AS n FROM __drizzle_migrations");
+  const files = [...Deno.readDirSync(MIGRATIONS)].filter((f) => f.name.endsWith(".sql"));
+  assertEquals(Number(res.rows[0].n), files.length);
 });

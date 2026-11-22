@@ -3,7 +3,12 @@ import { and, count, eq, type SQL } from "drizzle-orm";
 import type { Db } from "./db.ts";
 import { type Priority, type Status, type Task, tasks } from "./schema.ts";
 
-export type TaskInput = { title: string; status: Status; priority: Priority };
+export type TaskInput = {
+  title: string;
+  status: Status;
+  priority: Priority;
+  dueDate: string | null;
+};
 export type ListOptions = {
   page: number;
   limit: number;
