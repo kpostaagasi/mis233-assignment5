@@ -116,7 +116,7 @@ Deno.test("pagination: 3 tasks, page 2 with limit 2 holds the third one", async 
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals([body.page, body.limit, body.total], [2, 2, 3]);
-  assertEquals(body.items.map((t: { title: string }) => t.title), ["three"]);
+  assertEquals(body.items.map((t: { title: string }) => t.title), ["two"]); // wrong on purpose: CI must go red
 });
 
 Deno.test("filter by status and priority; total counts only the matches", async () => {
