@@ -1,5 +1,5 @@
 // Kamil Postaağası, 2023501030
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const STATUSES = ["todo", "in-progress", "done"] as const;
@@ -35,6 +35,9 @@ export const tasks = sqliteTable("tasks", {
   dueDate: text("due_date"),
   // Soft delete (Bonus 2): NULL while the task is alive, the delete time once removed.
   deletedAt: integer("deleted_at"),
-});
+}, (t) => [
+  // Bonus 4: the list query filters by owner and status; this index answers it directly.
+  index("idx_tasks_user_status").on(t.userId, t.status),
+]);
 
 export type Task = typeof tasks.$inferSelect;

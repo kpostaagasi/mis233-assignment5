@@ -10,6 +10,7 @@ import { Credentials } from "./validation.ts";
 import { jsonLogger, requestLog } from "./logging.ts";
 import type { Env, Logger } from "./types.ts";
 import { taskRoutes } from "./tasks_routes.ts";
+import { summary } from "./summary.ts";
 import { addWelcomeTask, registerUser } from "./users_repo.ts";
 
 // A real bcrypt hash of a random string. Login compares against it when the email is
@@ -84,6 +85,9 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
   // Every /api route needs a token. The middleware runs before the routes below.
   app.use("/api/*", requireAuth(db));
   app.route("/api/tasks", taskRoutes(db));
+
+  // Bonus 3: counts per status in one GROUP BY query.
+  app.get("/api/me/summary", async (c) => c.json(await summary(db.db, c.get("userId"))));
 
   app.notFound((c) => fail(c, 404, "not found"));
   app.onError((err, c) => {
