@@ -21,6 +21,8 @@ const ConfigSchema = z.object({
   AUTH_MODE: z.enum(["jwt", "session"]).default("jwt"),
   // Bonus 9: this user is made an admin at start-up (if the account exists).
   ADMIN_EMAIL: z.email().optional(),
+  // Bonus 6: how many connections the request pool opens.
+  DB_POOL_SIZE: z.coerce.number().int().min(1).max(32).default(4),
 }).superRefine((c, ctx) => {
   if (c.APP_ENV !== "production") return;
   if (c.JWT_SECRET === DEV_SECRET || c.JWT_SECRET === "change-me") {

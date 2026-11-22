@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { type Config, testConfig } from "./config.ts";
-import type { Db } from "./db.ts";
+import { type Db, withConnection } from "./db.ts";
 import { jwtTokens, requireAuth, requireRole, sessionTokens } from "./auth.ts";
 import { authRoutes } from "./auth_routes.ts";
 import { fail } from "./errors.ts";
@@ -58,16 +58,20 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
 
   // Every /api route needs a token. The middleware runs before the routes below.
   app.use("/api/*", requireAuth(tokens));
-  app.route("/api/tasks", taskRoutes(db));
+  app.use("/api/*", withConnection(db.pool));
+  app.route("/api/tasks", taskRoutes());
 
   // Bonus 3: counts per status in one GROUP BY query.
-  app.get("/api/me/summary", async (c) => c.json(await summary(db.db, c.get("userId"))));
+  app.get(
+    "/api/me/summary",
+    async (c) => c.json(await summary(c.get("conn").db, c.get("userId"))),
+  );
 
   // Bonus 9 and 3: admins see every user with a task count (one LEFT JOIN, no N+1).
   app.get(
     "/api/admin/users",
     requireRole("admin"),
-    async (c) => c.json(await usersOverview(db.db)),
+    async (c) => c.json(await usersOverview(c.get("conn").db)),
   );
 
   app.notFound((c) => fail(c, 404, "not found"));

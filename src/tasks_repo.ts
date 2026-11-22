@@ -1,6 +1,6 @@
 // Kamil Postaağası, 2023501030
 import { and, count, eq, isNotNull, isNull, type SQL, sql } from "drizzle-orm";
-import type { Db } from "./db.ts";
+import type { Conn } from "./db.ts";
 import { type Priority, type Status, type Task, tasks } from "./schema.ts";
 
 export type TaskInput = {
@@ -32,7 +32,7 @@ const alive = (id: number, userId: number) =>
 
 const now = sql`(strftime('%s','now'))`;
 
-export async function listTasks(db: Db, userId: number, o: ListOptions) {
+export async function listTasks(db: Conn, userId: number, o: ListOptions) {
   const filters: SQL[] = [
     eq(tasks.userId, userId),
     o.deleted ? isNotNull(tasks.deletedAt) : isNull(tasks.deletedAt),
@@ -48,7 +48,7 @@ export async function listTasks(db: Db, userId: number, o: ListOptions) {
 }
 
 export async function getTask(
-  db: Db,
+  db: Conn,
   userId: number,
   id: number,
 ): Promise<Task | undefined> {
@@ -57,7 +57,7 @@ export async function getTask(
 }
 
 export async function createTask(
-  db: Db,
+  db: Conn,
   userId: number,
   input: TaskInput,
 ): Promise<Task> {
@@ -66,21 +66,21 @@ export async function createTask(
 }
 
 /** PUT replaces the editable fields. .returning() tells us whether a row matched. */
-export async function updateTask(db: Db, userId: number, id: number, input: TaskInput) {
+export async function updateTask(db: Conn, userId: number, id: number, input: TaskInput) {
   const [task] = await db.db.update(tasks).set(input).where(alive(id, userId))
     .returning();
   return task as Task | undefined;
 }
 
 /** Soft delete: mark the row instead of removing it, so it can be restored. */
-export async function deleteTask(db: Db, userId: number, id: number): Promise<boolean> {
+export async function deleteTask(db: Conn, userId: number, id: number): Promise<boolean> {
   const rows = await db.db.update(tasks).set({ deletedAt: now })
     .where(alive(id, userId)).returning({ id: tasks.id });
   return rows.length > 0;
 }
 
 /** Undo a soft delete. Only a deleted task can be restored; otherwise undefined. */
-export async function restoreTask(db: Db, userId: number, id: number) {
+export async function restoreTask(db: Conn, userId: number, id: number) {
   const [task] = await db.db.update(tasks).set({ deletedAt: null })
     .where(and(own(id, userId), isNotNull(tasks.deletedAt))).returning();
   return task as Task | undefined;

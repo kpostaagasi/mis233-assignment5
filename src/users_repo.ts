@@ -1,10 +1,10 @@
 // Kamil Postaağası, 2023501030
 import { eq } from "drizzle-orm";
-import type { Db } from "./db.ts";
+import type { Conn } from "./db.ts";
 import { tasks, users } from "./schema.ts";
 
 /** The tx object Drizzle passes into db.transaction(...). */
-type Tx = Parameters<Parameters<Db["db"]["transaction"]>[0]>[0];
+type Tx = Parameters<Parameters<Conn["db"]["transaction"]>[0]>[0];
 
 /** The first task every new user finds in the list. */
 export async function addWelcomeTask(tx: Tx, userId: number) {
@@ -21,7 +21,7 @@ export async function addWelcomeTask(tx: Tx, userId: number) {
  * outside the transaction and would not be rolled back.
  */
 export function registerUser(
-  db: Db,
+  db: Conn,
   email: string,
   passwordHash: string,
   welcome: ((tx: Tx, userId: number) => Promise<void>) | null = addWelcomeTask,
@@ -38,7 +38,7 @@ export function registerUser(
  * Bonus 9: how an admin comes to exist. At start-up the account with ADMIN_EMAIL (if it
  * exists) gets the admin role. Nobody can make themselves admin through the API.
  */
-export async function promoteAdmin(db: Db, email: string): Promise<boolean> {
+export async function promoteAdmin(db: Conn, email: string): Promise<boolean> {
   const rows = await db.db.update(users).set({ role: "admin" })
     .where(eq(users.email, email.toLowerCase())).returning({ id: users.id });
   return rows.length > 0;

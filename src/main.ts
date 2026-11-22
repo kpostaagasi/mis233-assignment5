@@ -14,7 +14,7 @@ try {
   Deno.exit(1);
 }
 
-const db = createDb(config.DATABASE_URL, config.DATABASE_AUTH_TOKEN);
+const db = createDb(config.DATABASE_URL, config.DATABASE_AUTH_TOKEN, config.DB_POOL_SIZE);
 await migrate(db);
 if (config.ADMIN_EMAIL && await promoteAdmin(db, config.ADMIN_EMAIL)) {
   console.log(JSON.stringify({ event: "admin promoted", email: config.ADMIN_EMAIL }));
