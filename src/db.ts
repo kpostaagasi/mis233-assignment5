@@ -10,9 +10,9 @@ export type Db = ReturnType<typeof createDb>;
 /** The SQL files that Drizzle Kit generated from schema.ts (deno task db:generate). */
 export const MIGRATIONS = fromFileUrl(new URL("../drizzle", import.meta.url));
 
-/** Open a database. Tests pass a temporary file. */
-export function createDb(url: string) {
-  const client = createClient({ url });
+/** Open a database. Tests pass a temporary file; Deno Deploy passes a Turso URL + token. */
+export function createDb(url: string, authToken?: string) {
+  const client = createClient({ url, authToken });
   const db = drizzle(client, { schema });
   return { db, client };
 }

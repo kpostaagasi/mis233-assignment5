@@ -1,15 +1,16 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch src/main.ts",
-    "start": "deno run -A src/main.ts",
-    "test": "deno test -A",
+    "dev": "deno run -A --watch --env-file=.env src/main.ts",
+    "start": "deno run -A --env-file=.env src/main.ts",
+    "test": "deno test -A --env-file=.env.test",
     "check": "deno check src/ tests/",
     "fmt": "deno fmt",
     "lint": "deno lint",
     "ui:install": "cd ui && deno install",
     "ui:dev": "cd ui && deno task dev",
     "db:generate": "deno run -A npm:drizzle-kit generate",
-    "db:migrate": "deno run -A npm:drizzle-kit migrate"
+    "db:migrate": "deno run -A npm:drizzle-kit migrate",
+    "start:prod": "deno run -A --env-file=.env.production src/main.ts"
   },
   "imports": {
     "hono": "npm:hono@^4",

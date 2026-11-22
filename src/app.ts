@@ -1,6 +1,7 @@
 // Kamil Postaağası, 2023501030
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { type Config, testConfig } from "./config.ts";
 import type { Db } from "./db.ts";
 import { users } from "./schema.ts";
 import { checkPassword, createSession, hashPassword, requireAuth } from "./auth.ts";
@@ -12,11 +13,34 @@ import { taskRoutes } from "./tasks_routes.ts";
 // unknown, so a wrong email takes as long as a wrong password (no timing hint).
 const DUMMY_HASH = await hashPassword(crypto.randomUUID());
 
+export type AppOptions = { config: Config };
+
 /** Build the whole application around a database, so tests can give it their own. */
-export function createApp(db: Db) {
+export function createApp(db: Db, options: Partial<AppOptions> = {}) {
+  const config = options.config ?? testConfig();
+  void config;
   const app = new Hono();
+  const startedAt = Date.now();
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  // Liveness: the process is up and answers. A platform restarts the app when this fails.
+  app.get(
+    "/healthz",
+    (c) =>
+      c.json({ ok: true, uptimeSeconds: Math.round((Date.now() - startedAt) / 1000) }),
+  );
+
+  // Readiness: the app can do real work, so the database must answer too.
+  app.get("/readyz", async (c) => {
+    try {
+      await db.db.run(sql`SELECT 1`);
+      return c.json({ ready: true });
+    } catch (err) {
+      console.error(err);
+      return fail(c, 503, "database not ready");
+    }
+  });
 
   app.post("/auth/register", async (c) => {
     const parsed = Credentials.safeParse(await c.req.json().catch(() => ({})));
