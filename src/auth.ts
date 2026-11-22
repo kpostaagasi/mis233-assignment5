@@ -1,6 +1,8 @@
 // Kamil Postaağası, 2023501030
 import bcrypt from "bcryptjs";
+import type { MiddlewareHandler } from "hono";
 import type { Db } from "./db.ts";
+import { fail } from "./errors.ts";
 
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 10);
 export const checkPassword = (plain: string, hash: string) => bcrypt.compare(plain, hash);
@@ -29,6 +31,23 @@ export async function userIdFromToken(db: Db, token: string): Promise<number | n
   return id === undefined ? null : Number(id);
 }
 
-// TODO R3: write a Hono middleware factory `requireAuth(db)` that reads "Authorization: Bearer <token>",
-// answers 401 when it is missing or unknown (use userIdFromToken), and otherwise stores the
-// user id with c.set("userId", id) so that the routes can use it.
+/** What the auth middleware leaves for the routes. */
+export type Env = { Variables: { userId: number } };
+
+/** Read "Authorization: Bearer <token>" and return the token, or "" when there is none. */
+export function bearerToken(header: string | undefined): string {
+  const match = /^Bearer\s+(\S+)$/i.exec(header ?? "");
+  return match ? match[1] : "";
+}
+
+/**
+ * Stops the request with 401 unless it carries a valid token. Otherwise the user id is
+ * stored in the context, so a route never trusts a user id from the body or the URL.
+ */
+export const requireAuth = (db: Db): MiddlewareHandler<Env> => async (c, next) => {
+  const token = bearerToken(c.req.header("authorization"));
+  const id = token ? await userIdFromToken(db, token) : null;
+  if (id === null) return fail(c, 401, "unauthorized");
+  c.set("userId", id);
+  await next();
+};
