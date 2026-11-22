@@ -45,6 +45,16 @@ export default function App() {
     if (token) load(token);
   }, [token, load]);
 
+  // Bonus 13 (added by me): reload the list when the API says one of my tasks changed,
+  // for example in another tab. The token goes in the query: a browser WebSocket has no headers.
+  useEffect(() => {
+    if (!token) return;
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/ws?token=${token}`);
+    ws.onmessage = () => load(token);
+    return () => ws.close();
+  }, [token, load]);
+
   async function auth(kind: "register" | "login") {
     setMessage("");
     try {

@@ -14,6 +14,7 @@ const task = (id: number, userId: number, title: string): Task => ({
   dueDate: null,
   deletedAt: null,
   attachment: null,
+  completedAt: null,
 });
 
 Deno.test("cache: the second read is a hit and does not touch the database", async () => {

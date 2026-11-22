@@ -41,6 +41,8 @@ export const tasks = sqliteTable("tasks", {
   deletedAt: integer("deleted_at"),
   // Bonus 12: the generated file name of an uploaded image in UPLOAD_DIR, or NULL.
   attachment: text("attachment"),
+  // Bonus 14: when the task became "done" (Unix seconds); NULL while it is not done.
+  completedAt: integer("completed_at"),
 }, (t) => [
   // Bonus 4: the list query filters by owner and status; this index answers it directly.
   index("idx_tasks_user_status").on(t.userId, t.status),

@@ -50,6 +50,8 @@ export async function seed(db: Db) {
       title,
       status: statuses[i % 3],
       priority: priorities[(i + 1) % 3],
+      // a done task needs its completion time, or the purge job (Bonus 14) never sees it
+      completedAt: statuses[i % 3] === "done" ? Math.floor(Date.now() / 1000) : null,
     }));
     await db.db.insert(tasks).values(list);
     tasksAdded += list.length;

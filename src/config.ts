@@ -24,6 +24,11 @@ const ConfigSchema = z.object({
   // Bonus 6: how many connections the request pool opens.
   // Bonus 12: where uploaded images are stored (kept out of Git).
   UPLOAD_DIR: z.string().min(1).default("./uploads"),
+  // Bonus 14: when the purge job runs (cron syntax, UTC). "* * * * *" = every minute.
+  PURGE_CRON: z.string().min(9).default("0 3 * * *"),
+  // Bonus 16: where Deno KV keeps its file. Empty = Deno's default place (and the managed
+  // store on Deno Deploy).
+  KV_PATH: z.string().min(1).optional(),
   DB_POOL_SIZE: z.coerce.number().int().min(1).max(32).default(4),
 }).superRefine((c, ctx) => {
   if (c.APP_ENV !== "production") return;

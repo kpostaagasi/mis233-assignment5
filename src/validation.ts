@@ -37,6 +37,9 @@ export const ListQuery = z.object({
   }),
 });
 
+/** GET /ws?token=... */
+export const WsQuery = z.object({ token: z.string().min(1) });
+
 /** The :id in the URL: a positive whole number, or the request is a 400. */
 export const IdParam = z.object({
   id: z.coerce.number().int().positive().openapi({
@@ -66,6 +69,7 @@ export const TaskSchema = z.object({
   dueDate: z.string().nullable(),
   deletedAt: z.number().int().nullable(),
   attachment: z.string().nullable(),
+  completedAt: z.number().int().nullable(),
 }).openapi("Task");
 
 export const TaskPage = z.object({

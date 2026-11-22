@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 import { join } from "@std/path";
 import type { TaskCache } from "./cache.ts";
+import type { LiveEvent, LiveHub } from "./live.ts";
 import { fail, toIssues } from "./errors.ts";
 import {
   checkUpload,
@@ -123,12 +124,19 @@ const restore = createRoute({
 export type TaskDeps = {
   cache?: TaskCache; // Bonus 16; without it every read goes to the database
   uploadDir: string; // Bonus 12
+  hub?: LiveHub; // Bonus 13: open WebSockets that hear about changes
 };
 
-export function taskRoutes({ cache, uploadDir }: TaskDeps) {
+export function taskRoutes({ cache, uploadDir, hub }: TaskDeps) {
   const r = router();
-  /** After any change the cached copy must go, or a reader would see the old task. */
-  const changed = (userId: number, id: number) => cache?.invalidate(userId, id);
+  /**
+   * After any change: the cached copy must go, or a reader would see the old task, and
+   * the owner's open tabs hear about it at once.
+   */
+  const changed = async (userId: number, id: number, event?: LiveEvent) => {
+    await cache?.invalidate(userId, id);
+    if (event) hub?.publish(userId, event);
+  };
 
   r.openapi(list, async (c) => {
     const page = await listTasks(c.get("conn"), c.get("userId"), c.req.valid("query"));
@@ -137,6 +145,7 @@ export function taskRoutes({ cache, uploadDir }: TaskDeps) {
 
   r.openapi(create, async (c) => {
     const task = await createTask(c.get("conn"), c.get("userId"), c.req.valid("json"));
+    await changed(task.userId, task.id, { type: "created", task });
     return c.json(task, 201);
   });
 
@@ -156,7 +165,7 @@ export function taskRoutes({ cache, uploadDir }: TaskDeps) {
     const userId = c.get("userId");
     const task = await updateTask(c.get("conn"), userId, id, c.req.valid("json"));
     if (!task) return fail(c, 404, NOT_FOUND);
-    await changed(userId, id);
+    await changed(userId, id, { type: "updated", task });
     return c.json(task, 200);
   });
 
@@ -165,7 +174,7 @@ export function taskRoutes({ cache, uploadDir }: TaskDeps) {
     const userId = c.get("userId");
     const deleted = await deleteTask(c.get("conn"), userId, id);
     if (!deleted) return fail(c, 404, NOT_FOUND);
-    await changed(userId, id);
+    await changed(userId, id, { type: "deleted", task: { id } });
     return c.json({ ok: true as const }, 200);
   });
 
@@ -174,7 +183,7 @@ export function taskRoutes({ cache, uploadDir }: TaskDeps) {
     const userId = c.get("userId");
     const task = await restoreTask(c.get("conn"), userId, id);
     if (!task) return fail(c, 404, "no deleted task with this id");
-    await changed(userId, id);
+    await changed(userId, id, { type: "restored", task });
     return c.json(task, 200);
   });
 
@@ -207,7 +216,7 @@ export function taskRoutes({ cache, uploadDir }: TaskDeps) {
       return fail(c, 404, NOT_FOUND);
     }
     await removeUpload(uploadDir, before.attachment); // a new upload replaces the old one
-    await changed(userId, id);
+    await changed(userId, id, { type: "updated", task });
     return c.json(task, 201);
   });
 

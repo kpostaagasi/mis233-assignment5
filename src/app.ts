@@ -14,8 +14,9 @@ import { jsonLogger, requestLog } from "./logging.ts";
 import type { Logger } from "./types.ts";
 import { taskRoutes } from "./tasks_routes.ts";
 import { TaskCache } from "./cache.ts";
+import { LiveHub } from "./live.ts";
 import { summary, usersOverview } from "./summary.ts";
-import { SummarySchema, UserOverviewSchema } from "./validation.ts";
+import { SummarySchema, UserOverviewSchema, WsQuery } from "./validation.ts";
 
 export type AppOptions = {
   config: Config;
@@ -24,6 +25,7 @@ export type AppOptions = {
   limiter: LoginLimiter; // Bonus 15: tests pass one with a fake clock
   kv: Deno.Kv; // Bonus 16: the cache; without it reads go to the database every time
   cachePrefix: string; // first part of every cache key (tests share one KV)
+  hub: LiveHub; // Bonus 13: who has a WebSocket open
 };
 
 // ------------------------------------------------------------------ route descriptions
@@ -124,7 +126,29 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
   app.use("/api/*", requireAuth(tokens));
   app.use("/api/*", withConnection(db.pool));
   const cache = options.kv ? new TaskCache(options.kv, options.cachePrefix) : undefined;
-  app.route("/api/tasks", taskRoutes({ cache, uploadDir: config.UPLOAD_DIR }));
+  const hub = options.hub ?? new LiveHub();
+  app.route("/api/tasks", taskRoutes({ cache, uploadDir: config.UPLOAD_DIR, hub }));
+
+  // Bonus 13: live updates. A browser cannot set headers on a WebSocket, so the token
+  // travels in the query. It is checked BEFORE the upgrade, exactly like requireAuth.
+  app.get("/ws", async (c) => {
+    const q = WsQuery.safeParse(c.req.query());
+    const who = q.success ? await tokens.verify(q.data.token) : null;
+    if (!who) return fail(c, 401, "unauthorized");
+    c.set("userId", who.userId); // for the log line
+    const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
+    socket.onopen = () => hub.add(who.userId, socket);
+    socket.onclose = () => hub.remove(who.userId, socket);
+    return response;
+  });
+  app.openAPIRegistry.registerPath({
+    method: "get",
+    path: "/ws",
+    tags: ["live"],
+    summary: "WebSocket: events { type, task } for my tasks (Bonus 13)",
+    request: { query: WsQuery },
+    responses: { 101: { description: "Switching to WebSocket" }, 401: errors[401] },
+  });
 
   // Bonus 3: counts per status in one GROUP BY query.
   app.openapi(mySummary, async (c) => {

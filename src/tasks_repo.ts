@@ -56,19 +56,26 @@ export async function getTask(
   return task;
 }
 
-export async function createTask(
-  db: Conn,
-  userId: number,
-  input: TaskInput,
-): Promise<Task> {
-  const [task] = await db.db.insert(tasks).values({ ...input, userId }).returning();
+/**
+ * Bonus 14: completedAt follows the status. It is set the first time a task becomes done,
+ * kept while it stays done (a PUT that only renames it does not reset the clock), and
+ * cleared when the task leaves "done".
+ */
+const completedAtFor = (status: Status) =>
+  status === "done" ? sql`coalesce(${tasks.completedAt}, strftime('%s','now'))` : null;
+
+export async function createTask(db: Conn, userId: number, input: TaskInput) {
+  const completedAt = input.status === "done" ? now : null;
+  const [task] = await db.db.insert(tasks).values({ ...input, userId, completedAt })
+    .returning();
   return task;
 }
 
 /** PUT replaces the editable fields. .returning() tells us whether a row matched. */
 export async function updateTask(db: Conn, userId: number, id: number, input: TaskInput) {
-  const [task] = await db.db.update(tasks).set(input).where(alive(id, userId))
-    .returning();
+  const [task] = await db.db.update(tasks)
+    .set({ ...input, completedAt: completedAtFor(input.status) })
+    .where(alive(id, userId)).returning();
   return task as Task | undefined;
 }
 
