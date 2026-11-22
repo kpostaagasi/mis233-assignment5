@@ -40,11 +40,18 @@ Deno.test("register with a bad body is 400 with the issues", async () => {
   ]);
 });
 
-Deno.test("register with a body that is not JSON is 400, not a crash", async () => {
+Deno.test("register with broken JSON is 400 and without JSON content-type 415", async () => {
   const app = await freshApp();
-  const res = await app.request("/auth/register", { method: "POST", body: "{oops" });
-  assertEquals(res.status, 400);
-  assertEquals((await res.json()).error, "validation failed");
+  const broken = await app.request("/auth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{oops",
+  });
+  assertEquals(broken.status, 400);
+  assertEquals((await broken.json()).error, "validation failed");
+  const text = await app.request("/auth/register", { method: "POST", body: "hello" });
+  assertEquals(text.status, 415);
+  assertEquals(typeof (await text.json()).error, "string");
 });
 
 Deno.test("login with the right password returns a token", async () => {

@@ -27,7 +27,9 @@
     "drizzle-kit": "npm:drizzle-kit@^0.31",
     "drizzle-orm/libsql/migrator": "npm:drizzle-orm@^0.44/libsql/migrator",
     "@std/path": "jsr:@std/path@^1",
-    "jose": "npm:jose@^6"
+    "jose": "npm:jose@^6",
+    "@hono/zod-openapi": "npm:@hono/zod-openapi@^1",
+    "@hono/swagger-ui": "npm:@hono/swagger-ui@^0.5"
   },
   "fmt": {
     "lineWidth": 90,

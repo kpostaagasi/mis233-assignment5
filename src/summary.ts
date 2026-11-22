@@ -1,7 +1,7 @@
 // Kamil Postaağası, 2023501030
 import { and, count, eq, isNull } from "drizzle-orm";
 import type { Db } from "./db.ts";
-import { type Status, STATUSES, tasks, users } from "./schema.ts";
+import { type Role, type Status, STATUSES, tasks, users } from "./schema.ts";
 
 export type Summary = Record<Status, number> & { total: number };
 
@@ -35,7 +35,7 @@ export async function summaryNaive(db: Db["db"], userId: number): Promise<Summar
   return result;
 }
 
-export type UserOverview = { id: number; email: string; role: string; tasks: number };
+export type UserOverview = { id: number; email: string; role: Role; tasks: number };
 
 /**
  * The classic N+1, for the admin users list: one query for the users, then one query per

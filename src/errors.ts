@@ -22,9 +22,9 @@ export function toIssues(issues: z.core.$ZodIssue[]): Issue[] {
  * Every failure in the app goes through here, so they all look the same. The request id
  * is also in the x-request-id header and in the log line, so a user can quote it.
  */
-export function fail(
+export function fail<S extends ContentfulStatusCode>(
   c: Context<Env>,
-  status: ContentfulStatusCode,
+  status: S,
   error: string,
   issues?: Issue[],
 ) {

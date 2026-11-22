@@ -1,8 +1,15 @@
 // Kamil Postaağası, 2023501030
-import { Hono } from "hono";
-import type { Env } from "./types.ts";
-import { fail, toIssues } from "./errors.ts";
-import { IdParam, ListQuery, TaskBody } from "./validation.ts";
+import { createRoute } from "@hono/zod-openapi";
+import { fail } from "./errors.ts";
+import { bearer, body, errors, json, router } from "./openapi.ts";
+import {
+  IdParam,
+  ListQuery,
+  OkSchema,
+  TaskBody,
+  TaskPage,
+  TaskSchema,
+} from "./validation.ts";
 import {
   createTask,
   deleteTask,
@@ -12,57 +19,141 @@ import {
   updateTask,
 } from "./tasks_repo.ts";
 
+// Each route is described once: method, path, input schemas and every response. The
+// library validates the input with these schemas before the handler runs, and the same
+// description goes into /openapi.json.
+const tags = ["tasks"];
+const NOT_FOUND = "task not found";
+
+const list = createRoute({
+  method: "get",
+  path: "/",
+  tags,
+  security: bearer,
+  summary: "One page of my tasks, optionally filtered",
+  request: { query: ListQuery },
+  responses: { 200: json(TaskPage, "One page"), 400: errors[400], 401: errors[401] },
+});
+
+const create = createRoute({
+  method: "post",
+  path: "/",
+  tags,
+  security: bearer,
+  summary: "Create a task",
+  request: body(TaskBody),
+  responses: { 201: json(TaskSchema, "Created"), 400: errors[400], 401: errors[401] },
+});
+
+const read = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags,
+  security: bearer,
+  summary: "One of my tasks",
+  request: { params: IdParam },
+  responses: {
+    200: json(TaskSchema, "The task"),
+    400: errors[400],
+    401: errors[401],
+    404: errors[404],
+  },
+});
+
+const replace = createRoute({
+  method: "put",
+  path: "/{id}",
+  tags,
+  security: bearer,
+  summary: "Replace one of my tasks",
+  request: { params: IdParam, ...body(TaskBody) },
+  responses: {
+    200: json(TaskSchema, "The updated task"),
+    400: errors[400],
+    401: errors[401],
+    404: errors[404],
+  },
+});
+
+const remove = createRoute({
+  method: "delete",
+  path: "/{id}",
+  tags,
+  security: bearer,
+  summary: "Delete one of my tasks (soft delete: it can be restored)",
+  request: { params: IdParam },
+  responses: {
+    200: json(OkSchema, "Deleted"),
+    400: errors[400],
+    401: errors[401],
+    404: errors[404],
+  },
+});
+
+const restore = createRoute({
+  method: "post",
+  path: "/{id}/restore",
+  tags,
+  security: bearer,
+  summary: "Restore a deleted task (Bonus 2)",
+  request: { params: IdParam },
+  responses: {
+    200: json(TaskSchema, "Restored"),
+    400: errors[400],
+    401: errors[401],
+    404: errors[404],
+  },
+});
+
 /**
  * The task routes. requireAuth has already run, so c.get("userId") is set, and each
  * request has borrowed a connection from the pool: c.get("conn").
  */
 export function taskRoutes() {
-  const r = new Hono<Env>();
+  const r = router();
 
-  r.get("/", async (c) => {
-    const q = ListQuery.safeParse(c.req.query());
-    if (!q.success) return fail(c, 400, "validation failed", toIssues(q.error.issues));
-    return c.json(await listTasks(c.get("conn"), c.get("userId"), q.data));
+  r.openapi(list, async (c) => {
+    const page = await listTasks(c.get("conn"), c.get("userId"), c.req.valid("query"));
+    return c.json(page, 200);
   });
 
-  r.post("/", async (c) => {
-    const body = TaskBody.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) {
-      return fail(c, 400, "validation failed", toIssues(body.error.issues));
-    }
-    return c.json(await createTask(c.get("conn"), c.get("userId"), body.data), 201);
+  r.openapi(create, async (c) => {
+    const task = await createTask(c.get("conn"), c.get("userId"), c.req.valid("json"));
+    return c.json(task, 201);
   });
 
-  r.get("/:id", async (c) => {
-    const p = IdParam.safeParse(c.req.param());
-    if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
-    const task = await getTask(c.get("conn"), c.get("userId"), p.data.id);
-    return task ? c.json(task) : fail(c, 404, "task not found");
+  r.openapi(read, async (c) => {
+    const task = await getTask(c.get("conn"), c.get("userId"), c.req.valid("param").id);
+    return task ? c.json(task, 200) : fail(c, 404, NOT_FOUND);
   });
 
-  r.put("/:id", async (c) => {
-    const p = IdParam.safeParse(c.req.param());
-    if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
-    const body = TaskBody.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) {
-      return fail(c, 400, "validation failed", toIssues(body.error.issues));
-    }
-    const task = await updateTask(c.get("conn"), c.get("userId"), p.data.id, body.data);
-    return task ? c.json(task) : fail(c, 404, "task not found");
+  r.openapi(replace, async (c) => {
+    const { id } = c.req.valid("param");
+    const task = await updateTask(
+      c.get("conn"),
+      c.get("userId"),
+      id,
+      c.req.valid("json"),
+    );
+    return task ? c.json(task, 200) : fail(c, 404, NOT_FOUND);
   });
 
-  r.delete("/:id", async (c) => {
-    const p = IdParam.safeParse(c.req.param());
-    if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
-    const deleted = await deleteTask(c.get("conn"), c.get("userId"), p.data.id);
-    return deleted ? c.json({ ok: true }) : fail(c, 404, "task not found");
+  r.openapi(remove, async (c) => {
+    const deleted = await deleteTask(
+      c.get("conn"),
+      c.get("userId"),
+      c.req.valid("param").id,
+    );
+    return deleted ? c.json({ ok: true as const }, 200) : fail(c, 404, NOT_FOUND);
   });
 
-  r.post("/:id/restore", async (c) => {
-    const p = IdParam.safeParse(c.req.param());
-    if (!p.success) return fail(c, 400, "validation failed", toIssues(p.error.issues));
-    const task = await restoreTask(c.get("conn"), c.get("userId"), p.data.id);
-    return task ? c.json(task) : fail(c, 404, "no deleted task with this id");
+  r.openapi(restore, async (c) => {
+    const task = await restoreTask(
+      c.get("conn"),
+      c.get("userId"),
+      c.req.valid("param").id,
+    );
+    return task ? c.json(task, 200) : fail(c, 404, "no deleted task with this id");
   });
 
   return r;
