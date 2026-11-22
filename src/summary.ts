@@ -35,14 +35,14 @@ export async function summaryNaive(db: Db["db"], userId: number): Promise<Summar
   return result;
 }
 
-export type UserOverview = { id: number; email: string; tasks: number };
+export type UserOverview = { id: number; email: string; role: string; tasks: number };
 
 /**
  * The classic N+1, for the admin users list: one query for the users, then one query per
  * user for the task count. 50 users = 51 queries; it grows with the data.
  */
 export async function usersOverviewNaive(db: Db["db"]): Promise<UserOverview[]> {
-  const list = await db.select({ id: users.id, email: users.email })
+  const list = await db.select({ id: users.id, email: users.email, role: users.role })
     .from(users).orderBy(users.id);
   const result: UserOverview[] = [];
   for (const u of list) {
@@ -57,6 +57,7 @@ export function usersOverview(db: Db["db"]): Promise<UserOverview[]> {
   return db.select({
     id: users.id,
     email: users.email,
+    role: users.role,
     tasks: count(tasks.id), // count(column) skips the NULLs of the LEFT JOIN
   })
     .from(users)

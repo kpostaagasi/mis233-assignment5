@@ -4,14 +4,18 @@ import { sql } from "drizzle-orm";
 
 export const STATUSES = ["todo", "in-progress", "done"] as const;
 export const PRIORITIES = ["low", "medium", "high"] as const;
+export const ROLES = ["user", "admin"] as const;
 export type Status = (typeof STATUSES)[number];
 export type Priority = (typeof PRIORITIES)[number];
+export type Role = (typeof ROLES)[number];
 
 // The users table (given).
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  // Bonus 9: what the user may do. Everyone starts as "user".
+  role: text("role", { enum: ROLES }).notNull().default("user"),
   // A SQL default runs for every row. A JavaScript Date.now() here would run once.
   createdAt: integer("created_at").notNull().default(sql`(strftime('%s','now'))`),
 });

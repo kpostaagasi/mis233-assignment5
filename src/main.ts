@@ -2,6 +2,7 @@
 import { createApp } from "./app.ts";
 import { ConfigError, loadConfig } from "./config.ts";
 import { createDb, migrate } from "./db.ts";
+import { promoteAdmin } from "./users_repo.ts";
 
 // Read the whole configuration once. A missing or wrong value stops here, with a message.
 let config;
@@ -15,5 +16,8 @@ try {
 
 const db = createDb(config.DATABASE_URL, config.DATABASE_AUTH_TOKEN);
 await migrate(db);
+if (config.ADMIN_EMAIL && await promoteAdmin(db, config.ADMIN_EMAIL)) {
+  console.log(JSON.stringify({ event: "admin promoted", email: config.ADMIN_EMAIL }));
+}
 
 Deno.serve({ port: config.PORT }, createApp(db, { config }).fetch);

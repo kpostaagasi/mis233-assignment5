@@ -9,7 +9,8 @@ Deno.test("register answers 201 with id and email, never the hash", async () => 
   const res = await send(app, "POST", "/auth/register", ayse);
   assertEquals(res.status, 201);
   const body = await res.json();
-  assertEquals(body, { id: 1, email: "ayse@example.com" });
+  assertEquals(body, { id: 1, email: "ayse@example.com", role: "user" });
+  assertEquals("passwordHash" in body, false);
 });
 
 Deno.test("register with an email that is taken is 409", async () => {

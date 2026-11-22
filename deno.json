@@ -25,7 +25,8 @@
     "@std/assert": "jsr:@std/assert@^1",
     "drizzle-kit": "npm:drizzle-kit@^0.31",
     "drizzle-orm/libsql/migrator": "npm:drizzle-orm@^0.44/libsql/migrator",
-    "@std/path": "jsr:@std/path@^1"
+    "@std/path": "jsr:@std/path@^1",
+    "jose": "npm:jose@^6"
   },
   "fmt": {
     "lineWidth": 90,

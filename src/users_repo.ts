@@ -1,4 +1,5 @@
 // Kamil Postaağası, 2023501030
+import { eq } from "drizzle-orm";
 import type { Db } from "./db.ts";
 import { tasks, users } from "./schema.ts";
 
@@ -27,8 +28,18 @@ export function registerUser(
 ) {
   return db.db.transaction(async (tx) => {
     const [user] = await tx.insert(users).values({ email, passwordHash })
-      .returning({ id: users.id, email: users.email });
+      .returning({ id: users.id, email: users.email, role: users.role });
     if (welcome) await welcome(tx, user.id);
     return user;
   });
+}
+
+/**
+ * Bonus 9: how an admin comes to exist. At start-up the account with ADMIN_EMAIL (if it
+ * exists) gets the admin role. Nobody can make themselves admin through the API.
+ */
+export async function promoteAdmin(db: Db, email: string): Promise<boolean> {
+  const rows = await db.db.update(users).set({ role: "admin" })
+    .where(eq(users.email, email.toLowerCase())).returning({ id: users.id });
+  return rows.length > 0;
 }

@@ -17,6 +17,10 @@ const ConfigSchema = z.object({
   // Only for a hosted libSQL database such as Turso (Bonus 19).
   DATABASE_AUTH_TOKEN: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(1).default(DEV_SECRET),
+  // Bonus 7: "jwt" signs tokens; "session" keeps the given sessions table. Same routes.
+  AUTH_MODE: z.enum(["jwt", "session"]).default("jwt"),
+  // Bonus 9: this user is made an admin at start-up (if the account exists).
+  ADMIN_EMAIL: z.email().optional(),
 }).superRefine((c, ctx) => {
   if (c.APP_ENV !== "production") return;
   if (c.JWT_SECRET === DEV_SECRET || c.JWT_SECRET === "change-me") {
