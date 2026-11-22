@@ -39,6 +39,8 @@ export const tasks = sqliteTable("tasks", {
   dueDate: text("due_date"),
   // Soft delete (Bonus 2): NULL while the task is alive, the delete time once removed.
   deletedAt: integer("deleted_at"),
+  // Bonus 12: the generated file name of an uploaded image in UPLOAD_DIR, or NULL.
+  attachment: text("attachment"),
 }, (t) => [
   // Bonus 4: the list query filters by owner and status; this index answers it directly.
   index("idx_tasks_user_status").on(t.userId, t.status),

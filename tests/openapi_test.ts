@@ -17,6 +17,10 @@ Deno.test("/openapi.json lists every route with its failures and the Bearer sche
     ["/api/tasks/{id}", "get", ["200", "400", "401", "404"]],
     ["/api/tasks/{id}", "put", ["200", "400", "401", "404"]],
     ["/api/tasks/{id}", "delete", ["200", "400", "401", "404"]],
+    ["/api/tasks/{id}/restore", "post", ["200", "400", "401", "404"]],
+    ["/api/tasks/{id}/attachment", "post", ["201", "400", "401", "404", "413", "415"]],
+    ["/api/tasks/{id}/attachment", "get", ["200", "401", "404"]],
+    ["/api/me/summary", "get", ["200", "401"]],
     ["/api/admin/users", "get", ["200", "401", "403"]],
   ];
   for (const [path, method, codes] of expected) {

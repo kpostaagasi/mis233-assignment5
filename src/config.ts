@@ -22,6 +22,8 @@ const ConfigSchema = z.object({
   // Bonus 9: this user is made an admin at start-up (if the account exists).
   ADMIN_EMAIL: z.email().optional(),
   // Bonus 6: how many connections the request pool opens.
+  // Bonus 12: where uploaded images are stored (kept out of Git).
+  UPLOAD_DIR: z.string().min(1).default("./uploads"),
   DB_POOL_SIZE: z.coerce.number().int().min(1).max(32).default(4),
 }).superRefine((c, ctx) => {
   if (c.APP_ENV !== "production") return;

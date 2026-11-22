@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch --env-file=.env src/main.ts",
-    "start": "deno run -A --env-file=.env src/main.ts",
-    "test": "deno test -A --env-file=.env.test",
+    "dev": "deno run -A --unstable-kv --unstable-cron --watch --env-file=.env src/main.ts",
+    "start": "deno run -A --unstable-kv --unstable-cron --env-file=.env src/main.ts",
+    "test": "deno test -A --unstable-kv --unstable-cron --env-file=.env.test",
     "check": "deno check src/ tests/ scripts/ drizzle.config.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
@@ -10,7 +10,7 @@
     "ui:dev": "cd ui && deno task dev",
     "db:generate": "deno run -A npm:drizzle-kit generate",
     "db:migrate": "deno run -A npm:drizzle-kit migrate",
-    "start:prod": "deno run -A --env-file=.env.production src/main.ts",
+    "start:prod": "deno run -A --unstable-kv --unstable-cron --env-file=.env.production src/main.ts",
     "explain": "deno run -A scripts/explain.ts",
     "nplus1": "deno run -A scripts/n_plus_one.ts",
     "seed": "deno run -A --env-file=.env scripts/seed.ts"
@@ -41,5 +41,9 @@
     "exclude": [
       "ui/"
     ]
-  }
+  },
+  "unstable": [
+    "kv",
+    "cron"
+  ]
 }

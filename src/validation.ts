@@ -65,6 +65,7 @@ export const TaskSchema = z.object({
   createdAt: z.number().int().openapi({ description: "Unix seconds" }),
   dueDate: z.string().nullable(),
   deletedAt: z.number().int().nullable(),
+  attachment: z.string().nullable(),
 }).openapi("Task");
 
 export const TaskPage = z.object({

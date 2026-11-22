@@ -20,4 +20,7 @@ if (config.ADMIN_EMAIL && await promoteAdmin(db, config.ADMIN_EMAIL)) {
   console.log(JSON.stringify({ event: "admin promoted", email: config.ADMIN_EMAIL }));
 }
 
-Deno.serve({ port: config.PORT }, createApp(db, { config }).fetch);
+// Deno KV for the read cache (Bonus 16): a local file here, a managed store on Deno Deploy.
+const kv = await Deno.openKv();
+
+Deno.serve({ port: config.PORT }, createApp(db, { config, kv }).fetch);

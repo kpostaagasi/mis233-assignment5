@@ -1,6 +1,14 @@
 // Kamil Postaağası, 2023501030
 import { type AppOptions, createApp } from "../src/app.ts";
 import { createDb, migrate } from "../src/db.ts";
+import { testConfig } from "../src/config.ts";
+
+/**
+ * One in-memory Deno KV for the whole test file, opened outside any test so the resource
+ * sanitizer does not complain. Each app gets its own key prefix, so tests never share
+ * cache entries.
+ */
+export const kv = await Deno.openKv(":memory:");
 
 type App = ReturnType<typeof createApp>;
 
@@ -21,7 +29,10 @@ export async function freshEnv(options: Partial<AppOptions> = {}) {
   const file = await Deno.makeTempFile({ suffix: ".db" });
   const db = createDb(`file:${file}`);
   await migrate(db);
-  return { db, app: createApp(db, { welcomeTask: false, ...options }) };
+  const config = options.config ?? testConfig({ UPLOAD_DIR: await Deno.makeTempDir() });
+  const cachePrefix = `task-${crypto.randomUUID()}`;
+  const app = createApp(db, { welcomeTask: false, kv, cachePrefix, ...options, config });
+  return { db, app, config };
 }
 
 /** Send a JSON request, optionally with a token. */

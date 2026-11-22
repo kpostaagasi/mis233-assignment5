@@ -13,6 +13,7 @@ import { LoginLimiter } from "./rate_limit.ts";
 import { jsonLogger, requestLog } from "./logging.ts";
 import type { Logger } from "./types.ts";
 import { taskRoutes } from "./tasks_routes.ts";
+import { TaskCache } from "./cache.ts";
 import { summary, usersOverview } from "./summary.ts";
 import { SummarySchema, UserOverviewSchema } from "./validation.ts";
 
@@ -21,6 +22,8 @@ export type AppOptions = {
   log: Logger; // where the request log lines go (tests collect them)
   welcomeTask: boolean; // Bonus 2: register also creates a first task (default true)
   limiter: LoginLimiter; // Bonus 15: tests pass one with a fake clock
+  kv: Deno.Kv; // Bonus 16: the cache; without it reads go to the database every time
+  cachePrefix: string; // first part of every cache key (tests share one KV)
 };
 
 // ------------------------------------------------------------------ route descriptions
@@ -120,7 +123,8 @@ export function createApp(db: Db, options: Partial<AppOptions> = {}) {
   // Every /api route needs a token, then borrows a pooled connection (Bonus 6).
   app.use("/api/*", requireAuth(tokens));
   app.use("/api/*", withConnection(db.pool));
-  app.route("/api/tasks", taskRoutes());
+  const cache = options.kv ? new TaskCache(options.kv, options.cachePrefix) : undefined;
+  app.route("/api/tasks", taskRoutes({ cache, uploadDir: config.UPLOAD_DIR }));
 
   // Bonus 3: counts per status in one GROUP BY query.
   app.openapi(mySummary, async (c) => {

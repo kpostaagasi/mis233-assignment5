@@ -85,3 +85,10 @@ export async function restoreTask(db: Conn, userId: number, id: number) {
     .where(and(own(id, userId), isNotNull(tasks.deletedAt))).returning();
   return task as Task | undefined;
 }
+
+/** Bonus 12: remember the stored file name on a live task of this user. */
+export async function setAttachment(db: Conn, userId: number, id: number, name: string) {
+  const [task] = await db.db.update(tasks).set({ attachment: name })
+    .where(alive(id, userId)).returning();
+  return task as Task | undefined;
+}
