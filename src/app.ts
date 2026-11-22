@@ -3,9 +3,10 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import type { Db } from "./db.ts";
 import { users } from "./schema.ts";
-import { checkPassword, createSession, hashPassword } from "./auth.ts";
+import { checkPassword, createSession, hashPassword, requireAuth } from "./auth.ts";
 import { fail, toIssues } from "./errors.ts";
 import { Credentials } from "./validation.ts";
+import { taskRoutes } from "./tasks_routes.ts";
 
 // A real bcrypt hash of a random string. Login compares against it when the email is
 // unknown, so a wrong email takes as long as a wrong password (no timing hint).
@@ -47,6 +48,10 @@ export function createApp(db: Db) {
     if (!user || !ok) return fail(c, 401, "wrong email or password");
     return c.json({ token: await createSession(db, user.id) });
   });
+
+  // Every /api route needs a token. The middleware runs before the routes below.
+  app.use("/api/*", requireAuth(db));
+  app.route("/api/tasks", taskRoutes(db));
 
   app.notFound((c) => fail(c, 404, "not found"));
   app.onError((err, c) => {
