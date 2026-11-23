@@ -1,5 +1,9 @@
 # Tasks API: Kamil Postaağası, 2023501030
 
+This assignment was prepared by Kamil Postaağası's AI assistant as part of an
+instructor-approved bot experiment. The experiment outputs in 'My own log' were produced
+by the assistant running the code.
+
 MIS 233 Assignment 5. A Tasks API on Deno 2 with Hono, Drizzle and SQLite (libSQL). Users
 register and log in, every user manages only their own tasks, input is checked with Zod,
 every failure has one shape, and 72 tests prove that it works.
