@@ -302,9 +302,118 @@ Every failure test checks both the status and the `error` field.
 
 ## My own log (R8)
 
-> **TODO (Kamil): write at least five entries here yourself before submitting.** For each
-> one: what I tried, the exact error message, what I thought, and what fixed it. Delete
-> this note when the entries are in.
+These entries were written by the AI assistant (see the note at the top). Each experiment
+was run on 23 November 2026 against this repository: the code was broken on purpose, the
+real output was copied below, and the change was reverted afterwards (`git checkout .`,
+plus `git clean -fd drizzle` for entry 5). Request ids are from those runs.
+
+### 1. POST a task without the content-type header
+
+- **Tried:** sent valid JSON with curl `-d` but no `content-type` header:
+  `curl -s -i -X POST localhost:8000/api/tasks -H "Authorization: Bearer $TOKEN" -d '{"title":"no header"}'`
+- **Observed:**
+
+      HTTP/1.1 415 Unsupported Media Type
+      {"error":"send the body as JSON with content-type: application/json","requestId":"106c8cfe-7ff9-4277-bcb8-7a6779b57ca6"}
+
+- **What it showed:** the JSON itself was fine, but curl `-d` labels the body
+  `application/x-www-form-urlencoded`. The request was rejected before Zod ever ran, and
+  `app.onError` still turned it into the usual `{ error, requestId }` shape.
+- **Learned / changed:** adding `-H 'content-type: application/json'` to the same request
+  gave `HTTP/1.1 201 Created`. Every JSON curl example in this README sends that header.
+
+### 2. Remove the owner check from `own()` in `src/tasks_repo.ts`
+
+- **Tried:** changed `and(eq(tasks.id, id), eq(tasks.userId, userId))` to
+  `and(eq(tasks.id, id))` and ran `deno task test`.
+- **Observed:** the code still type-checked and the server would still run, but 4 tests
+  failed (`FAILED | 68 passed | 4 failed`), for example:
+
+      user B cannot read, change or delete user A's task (404 each) => ./tests/tasks_test.ts:85:6
+      error: AssertionError: Values are not equal.
+          [
+      -     200,
+      -     200,
+      -     200,
+      +     404,
+      +     404,
+      +     404,
+          ]
+
+  The other three were `another user never gets my cached task` (200 instead of 404),
+  `another user cannot restore my deleted task` (200 instead of 404) and
+  `only the owner can upload or download` (201, 200 instead of 404, 404).
+- **What it showed:** with one `eq` missing, user B could read, change and delete user A's
+  task. Nothing crashed; only the tests noticed.
+- **Learned / changed:** the owner condition lives in one helper (`own`) that every query
+  uses, and the cross-user tests stay in the suite because they are the only thing that
+  catches this kind of bug.
+
+### 3. Start in production with the default or a short `JWT_SECRET`
+
+- **Tried:** `APP_ENV=production deno run -A src/main.ts`, then the same with
+  `JWT_SECRET=abc`, then with `JWT_SECRET=$(openssl rand -hex 32)`.
+- **Observed:** the first two stopped before the server opened (exit code 1):
+
+      Invalid configuration:
+        JWT_SECRET: the default secret is not allowed in production
+
+      Invalid configuration:
+        JWT_SECRET: use at least 32 characters in production
+
+  The random 64-character secret started normally:
+  `Listening on http://0.0.0.0:8000/ (http://localhost:8000/)`.
+- **What it showed:** the check happens once, in `src/config.ts`, at startup, so a
+  misconfigured deployment cannot serve a single request with a guessable secret.
+- **Learned / changed:** `.env.production` deliberately holds no secret; the real
+  `JWT_SECRET` must come from the environment, and the default is only for local
+  development and tests.
+
+### 4. Tamper with a JWT, then log out and reuse it (JWT mode vs session mode)
+
+- **Tried:** changed one character in the middle of the token's signature and called
+  `GET /api/tasks`; then called `POST /auth/logout` with the real token and reused it.
+- **Observed (JWT mode, the default):**
+
+      HTTP/1.1 401 Unauthorized
+      {"error":"unauthorized","requestId":"b68f73e0-cca6-4148-8387-c2ef2ba1a45f"}
+
+  Logout answered `{"ok":true,"revoked":false}` and the same token then still got `200`.
+- **Observed (`AUTH_MODE=session deno task dev`):** the token was a 36-character session
+  id; before logout `200`, logout answered `{"ok":true,"revoked":true}`, and afterwards:
+
+      HTTP/1.1 401 Unauthorized
+      {"error":"unauthorized","requestId":"233a1108-2e93-4173-a2ce-98ecf2154dc5"}
+
+- **What it showed:** a changed signature is always rejected, but a valid JWT cannot be
+  revoked by logout: it is not stored anywhere and stays valid until it expires (1 hour).
+  A session row in the database can be deleted, so session logout really ends access.
+- **Learned / changed:** this is why the app supports both modes and why logout reports
+  `revoked` honestly instead of pretending the JWT was cancelled.
+
+### 5. Add a column to `schema.ts` without generating a migration
+
+- **Tried:** added `notes: text("notes"),` under `completedAt` in the `tasks` table and
+  ran `deno task test` without running `db:generate`.
+- **Observed (first surprise):** the type-checker stopped the run before any test, because
+  the `Task` fixture in `tests/cache_test.ts` had no `notes` field:
+
+      TS2741 [ERROR]: Property 'notes' is missing in type '{ id: number; userId: number; title: string; status: "todo"; ... completedAt: null; }' but required in type '{ ... notes: string | null; }'.
+          at file:///workspace/mis233/out/assignment5/tests/cache_test.ts:7:68
+      error: Type checking failed.
+
+- **Observed (database):** running the tests with `--no-check` to reach the database gave
+  `FAILED | 39 passed | 33 failed`, with errors such as
+  `LibsqlError: SQLITE_ERROR: table tasks has no column named notes` (inserts) and
+  `LibsqlError: SQLITE_ERROR: no such column: notes` (selects).
+- **Fix:** `deno task db:generate --name add_notes` wrote `drizzle/0007_add_notes.sql`
+  containing ``ALTER TABLE `tasks` ADD `notes` text;``. After that the `--no-check` run
+  passed (`ok | 72 passed | 0 failed`), and after adding `notes: null` to the fixture the
+  normal `deno task test` also passed (`ok | 72 passed | 0 failed`).
+- **Learned / changed:** `schema.ts` is what TypeScript knows and the migration is what
+  the database actually has; both must change together. Drizzle names every column in its
+  queries, so one missing column breaks both inserts and selects. The experiment was then
+  reverted, so the submitted schema has no `notes` column.
 
 ## Bonuses claimed
 
